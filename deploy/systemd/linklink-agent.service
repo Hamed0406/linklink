@@ -1,0 +1,31 @@
+[Unit]
+Description=linklink secure mesh tunnel agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=linklink
+Group=linklink
+ExecStart=/usr/local/bin/linklink up
+ExecStop=/usr/local/bin/linklink down
+Restart=on-failure
+RestartSec=5s
+
+# Grant capability to create TUN interfaces without running as root
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/linklink /etc/wireguard /var/lib/linklink /var/log/linklink
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=linklink
+
+[Install]
+WantedBy=multi-user.target

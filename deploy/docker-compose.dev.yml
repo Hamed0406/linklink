@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: linklink
+      POSTGRES_PASSWORD: linklink
+      POSTGRES_DB: linklink
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U linklink"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://linklink:linklink@postgres:5432/linklink?sslmode=disable
+      JWT_SECRET: dev-secret-change-me
+      ENV: development
+      AUTH_LOCAL_ENABLED: "true"
+      PORT: "8080"
+      STUN_SERVER: stun.l.google.com:19302
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:

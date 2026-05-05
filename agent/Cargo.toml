@@ -1,0 +1,24 @@
+[package]
+name = "linklink-agent"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "linklink"
+path = "src/main.rs"
+
+[dependencies]
+linklink-core    = { path = "../core" }
+tokio            = { workspace = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+tracing          = { workspace = true }
+uuid             = { workspace = true }
+base64           = { workspace = true }
+
+clap             = { version = "4", features = ["derive"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+qrcode           = "0.14"
+reqwest          = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+dirs             = "5"
+anyhow           = "1"

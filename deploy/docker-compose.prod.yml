@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-linklink}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-linklink}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-linklink}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  server:
+    image: ${DOCKERHUB_USERNAME}/linklink-server:main
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-linklink}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-linklink}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET}
+      ENV: production
+      PORT: "8080"
+      STUN_SERVER: ${STUN_SERVER:-stun.l.google.com:19302}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/linklink-frontend:main
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

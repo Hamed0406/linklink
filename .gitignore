@@ -1,0 +1,39 @@
+# Rust
+target/
+Cargo.lock.bak
+**/*.rs.bk
+
+# Go
+server/vendor/
+*.exe
+*.test
+*.out
+
+# Node / Frontend
+node_modules/
+dist/
+.cache/
+*.tsbuildinfo
+
+# Secrets & keys — never commit these
+.env
+.env.*
+!.env.example
+deploy/.env
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Docker
+*.log
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db  
+implementation-plan.md
+plan.md
