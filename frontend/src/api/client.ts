@@ -4,7 +4,12 @@ function getToken(): string | null {
   return localStorage.getItem('access_token')
 }
 
+const JWT_RE = /^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/
+const HEX_RE = /^[0-9a-f]{1,512}$/i
+
 function setTokens(access: string, refresh: string) {
+  if (!JWT_RE.test(access)) throw new Error('Invalid access token format')
+  if (!HEX_RE.test(refresh)) throw new Error('Invalid refresh token format')
   localStorage.setItem('access_token', access)
   localStorage.setItem('refresh_token', refresh)
 }

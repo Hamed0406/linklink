@@ -1,18 +1,16 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: linklink
-      POSTGRES_PASSWORD: linklink
-      POSTGRES_DB: linklink
+      POSTGRES_USER: ${POSTGRES_USER:-linklink}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-linklink}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U linklink"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-linklink}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -22,12 +20,12 @@ services:
       context: ../server
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgres://linklink:linklink@postgres:5432/linklink?sslmode=disable
-      JWT_SECRET: dev-secret-change-me
+      DATABASE_URL: postgres://${POSTGRES_USER:-linklink}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-linklink}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       ENV: development
       AUTH_LOCAL_ENABLED: "true"
       PORT: "8080"
-      STUN_SERVER: stun.l.google.com:19302
+      STUN_SERVER: ${STUN_SERVER:-stun.l.google.com:19302}
     ports:
       - "8080:8080"
     depends_on:

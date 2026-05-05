@@ -14,8 +14,6 @@ import (
 	"github.com/linklink/server/internal/audit"
 )
 
-const defaultNetworkCIDR = "10.44.0.0/24"
-
 type Device struct {
 	ID               string     `json:"id"`
 	UserID           string     `json:"user_id"`
