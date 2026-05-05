@@ -38,5 +38,5 @@ deploy/.env
 Thumbs.db  
 implementation-plan.md
 plan.md
-docs/architecture.md
-docs/security.md
+architecture.md
+security.md
