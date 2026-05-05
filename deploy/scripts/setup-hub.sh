@@ -10,6 +10,7 @@ for arg in "$@"; do
   case $arg in
     --server=*) CONTROL_SERVER="${arg#*=}" ;;
     --server)   shift; CONTROL_SERVER="$1" ;;
+    *) echo "Unknown argument: $arg" >&2; exit 1 ;;
   esac
 done
 

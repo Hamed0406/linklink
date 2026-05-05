@@ -351,9 +351,9 @@ func scanDevices(rows pgx.Rows) ([]Device, error) {
 // singleRow adapts pgx.Row to pgx.Rows for reuse of scanDevices.
 type singleRow struct{ pgx.Row }
 
-func (s singleRow) Next() bool          { return true }
+func (s singleRow) Next() bool             { return true }
 func (s singleRow) Scan(dest ...any) error { return s.Row.Scan(dest...) }
-func (s singleRow) Close()               {}
+func (s singleRow) Close()                 {} // pgx.Row handles its own cleanup; nothing to release here
 func (s singleRow) Err() error           { return nil }
 func (s singleRow) CommandTag() pgconn.CommandTag { return pgconn.CommandTag{} }
 func (s singleRow) FieldDescriptions() []pgconn.FieldDescription { return nil }

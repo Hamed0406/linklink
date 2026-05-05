@@ -9,6 +9,13 @@ import (
 	"github.com/linklink/server/internal/auth"
 )
 
+const (
+	contentTypeJSON = "application/json"
+	headerCT        = "Content-Type"
+	msgInternalErr  = "internal error"
+	msgNotFound     = "device not found"
+)
+
 type Handler struct {
 	svc *Service
 }
@@ -49,11 +56,11 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrDuplicatePublicKey):
 			jsonErr(w, err.Error(), http.StatusConflict)
 		default:
-			jsonErr(w, "internal error", http.StatusInternalServerError)
+			jsonErr(w, msgInternalErr, http.StatusInternalServerError)
 		}
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerCT, contentTypeJSON)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(dev)
 }
@@ -62,7 +69,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	claims := auth.ClaimsFromContext(r.Context())
 	devs, err := h.svc.List(r.Context(), claims.UserID, claims.Role)
 	if err != nil {
-		jsonErr(w, "internal error", http.StatusInternalServerError)
+		jsonErr(w, msgInternalErr, http.StatusInternalServerError)
 		return
 	}
 	if devs == nil {
@@ -76,10 +83,10 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	dev, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			jsonErr(w, "device not found", http.StatusNotFound)
+			jsonErr(w, msgNotFound, http.StatusNotFound)
 			return
 		}
-		jsonErr(w, "internal error", http.StatusInternalServerError)
+		jsonErr(w, msgInternalErr, http.StatusInternalServerError)
 		return
 	}
 	claims := auth.ClaimsFromContext(r.Context())
@@ -102,9 +109,9 @@ func (h *Handler) Approve(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrNotPending):
 			jsonErr(w, err.Error(), http.StatusBadRequest)
 		case errors.Is(err, ErrNotFound):
-			jsonErr(w, "device not found", http.StatusNotFound)
+			jsonErr(w, msgNotFound, http.StatusNotFound)
 		default:
-			jsonErr(w, "internal error", http.StatusInternalServerError)
+			jsonErr(w, msgInternalErr, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -116,7 +123,7 @@ func (h *Handler) Revoke(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	dev, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
-		jsonErr(w, "device not found", http.StatusNotFound)
+		jsonErr(w, msgNotFound, http.StatusNotFound)
 		return
 	}
 	if claims.Role != "admin" && dev.UserID != claims.UserID {
@@ -128,7 +135,7 @@ func (h *Handler) Revoke(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrAlreadyRevoked):
 			jsonErr(w, err.Error(), http.StatusBadRequest)
 		default:
-			jsonErr(w, "internal error", http.StatusInternalServerError)
+			jsonErr(w, msgInternalErr, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -140,7 +147,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	dev, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
-		jsonErr(w, "device not found", http.StatusNotFound)
+		jsonErr(w, msgNotFound, http.StatusNotFound)
 		return
 	}
 	if claims.Role != "admin" && dev.UserID != claims.UserID {
@@ -149,7 +156,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = h.svc.db.Exec(r.Context(), `DELETE FROM devices WHERE id=$1`, id)
 	if err != nil {
-		jsonErr(w, "internal error", http.StatusInternalServerError)
+		jsonErr(w, msgInternalErr, http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -171,7 +178,7 @@ func (h *Handler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 			jsonErr(w, "device not approved", http.StatusForbidden)
 			return
 		}
-		jsonErr(w, "internal error", http.StatusInternalServerError)
+		jsonErr(w, msgInternalErr, http.StatusInternalServerError)
 		return
 	}
 	jsonOK(w, map[string]bool{"has_update": hasUpdate})
@@ -185,9 +192,9 @@ func (h *Handler) Config(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrNotApproved):
 			jsonErr(w, "device not approved", http.StatusForbidden)
 		case errors.Is(err, ErrNotFound):
-			jsonErr(w, "device not found", http.StatusNotFound)
+			jsonErr(w, msgNotFound, http.StatusNotFound)
 		default:
-			jsonErr(w, "internal error", http.StatusInternalServerError)
+			jsonErr(w, msgInternalErr, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -195,12 +202,12 @@ func (h *Handler) Config(w http.ResponseWriter, r *http.Request) {
 }
 
 func jsonOK(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerCT, contentTypeJSON)
 	json.NewEncoder(w).Encode(v)
 }
 
 func jsonErr(w http.ResponseWriter, msg string, code int) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerCT, contentTypeJSON)
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }

@@ -17,6 +17,10 @@ import (
 const (
 	deviceCodeTTL   = 15 * time.Minute
 	pollInterval    = 5 * time.Second
+	contentTypeJSON = "application/json"
+	headerCT        = "Content-Type"
+	msgInternalErr  = "internal error"
+	msgInvalidBody  = "invalid request body"
 )
 
 type pendingCode struct {
@@ -67,7 +71,7 @@ func NewDeviceFlowHandler(store *DeviceFlowStore, db *pgxpool.Pool, secret strin
 func (h *DeviceFlowHandler) StartDevice(w http.ResponseWriter, r *http.Request) {
 	deviceCode, err := randomHex(32)
 	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
+		jsonError(w, msgInternalErr, http.StatusInternalServerError)
 		return
 	}
 	userCode := generateUserCode()
@@ -78,7 +82,7 @@ func (h *DeviceFlowHandler) StartDevice(w http.ResponseWriter, r *http.Request) 
 	}
 	h.store.mu.Unlock()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerCT, contentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]any{
 		"device_code":      deviceCode,
 		"user_code":        userCode,
@@ -95,7 +99,7 @@ func (h *DeviceFlowHandler) PollToken(w http.ResponseWriter, r *http.Request) {
 		DeviceCode string `json:"device_code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "invalid request body", http.StatusBadRequest)
+		jsonError(w, msgInvalidBody, http.StatusBadRequest)
 		return
 	}
 
@@ -115,7 +119,7 @@ func (h *DeviceFlowHandler) PollToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !entry.done {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerCT, contentTypeJSON)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "authorization_pending"})
 		return
@@ -124,12 +128,12 @@ func (h *DeviceFlowHandler) PollToken(w http.ResponseWriter, r *http.Request) {
 	// Issue tokens
 	access, err := GenerateAccessToken(h.secret, entry.userID, entry.role)
 	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
+		jsonError(w, msgInternalErr, http.StatusInternalServerError)
 		return
 	}
 	plain, hash, err := GenerateRefreshToken()
 	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
+		jsonError(w, msgInternalErr, http.StatusInternalServerError)
 		return
 	}
 	exp := RefreshTokenExpiry()
@@ -139,7 +143,7 @@ func (h *DeviceFlowHandler) PollToken(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		log.Error().Err(err).Msg("store refresh token")
-		jsonError(w, "internal error", http.StatusInternalServerError)
+		jsonError(w, msgInternalErr, http.StatusInternalServerError)
 		return
 	}
 
@@ -148,7 +152,7 @@ func (h *DeviceFlowHandler) PollToken(w http.ResponseWriter, r *http.Request) {
 	delete(h.store.codes, body.DeviceCode)
 	h.store.mu.Unlock()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerCT, contentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]any{
 		"access_token":  access,
 		"refresh_token": plain,
@@ -163,7 +167,7 @@ func (h *DeviceFlowHandler) Activate(w http.ResponseWriter, r *http.Request, use
 		UserCode string `json:"user_code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "invalid request body", http.StatusBadRequest)
+		jsonError(w, msgInvalidBody, http.StatusBadRequest)
 		return
 	}
 	userCode := strings.ToUpper(strings.ReplaceAll(body.UserCode, "-", ""))
@@ -176,7 +180,7 @@ func (h *DeviceFlowHandler) Activate(w http.ResponseWriter, r *http.Request, use
 			entry.done = true
 			entry.userID = userID
 			entry.role = role
-			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set(headerCT, contentTypeJSON)
 			json.NewEncoder(w).Encode(map[string]string{"status": "authorized"})
 			return
 		}
@@ -190,7 +194,7 @@ func (h *DeviceFlowHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "invalid request body", http.StatusBadRequest)
+		jsonError(w, msgInvalidBody, http.StatusBadRequest)
 		return
 	}
 	hash := HashToken(body.RefreshToken)
@@ -209,7 +213,7 @@ func (h *DeviceFlowHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "invalid request body", http.StatusBadRequest)
+		jsonError(w, msgInvalidBody, http.StatusBadRequest)
 		return
 	}
 	hash := HashToken(body.RefreshToken)
@@ -229,10 +233,10 @@ func (h *DeviceFlowHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	access, err := GenerateAccessToken(h.secret, userID, role)
 	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
+		jsonError(w, msgInternalErr, http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerCT, contentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]any{
 		"access_token": access,
 		"token_type":   "Bearer",
@@ -267,7 +271,7 @@ func generateUserCode() string {
 }
 
 func jsonError(w http.ResponseWriter, msg string, code int) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerCT, contentTypeJSON)
 	w.WriteHeader(code)
 	fmt.Fprintf(w, `{"error":%q}`, msg)
 }
