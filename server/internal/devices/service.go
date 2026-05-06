@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/linklink/server/internal/audit"
 )
@@ -241,21 +240,25 @@ func (s *Service) List(ctx context.Context, userID, role string) ([]Device, erro
 
 // GetByID fetches a single device.
 func (s *Service) GetByID(ctx context.Context, deviceID string) (*Device, error) {
-	row := s.db.QueryRow(ctx,
+	var d Device
+	err := s.db.QueryRow(ctx,
 		`SELECT id, user_id, network_id, name, os, hostname, public_key,
 		        tunnel_ip::text, external_endpoint, status, is_relay,
 		        config_version, last_seen_at, created_at
 		 FROM devices WHERE id=$1`,
 		deviceID,
+	).Scan(
+		&d.ID, &d.UserID, &d.NetworkID, &d.Name, &d.OS, &d.Hostname,
+		&d.PublicKey, &d.TunnelIP, &d.ExternalEndpoint,
+		&d.Status, &d.IsRelay, &d.ConfigVersion, &d.LastSeenAt, &d.CreatedAt,
 	)
-	devs, err := scanDevices(pgx.Rows(singleRow{row}))
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
-	if len(devs) == 0 {
-		return nil, ErrNotFound
-	}
-	return &devs[0], nil
+	return &d, nil
 }
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -348,15 +351,3 @@ func scanDevices(rows pgx.Rows) ([]Device, error) {
 	return devs, rows.Err()
 }
 
-// singleRow adapts pgx.Row to pgx.Rows for reuse of scanDevices.
-type singleRow struct{ pgx.Row }
-
-func (s singleRow) Next() bool             { return true }
-func (s singleRow) Scan(dest ...any) error { return s.Row.Scan(dest...) }
-func (s singleRow) Close()                 {} // pgx.Row handles its own cleanup; nothing to release here
-func (s singleRow) Err() error           { return nil }
-func (s singleRow) CommandTag() pgconn.CommandTag { return pgconn.CommandTag{} }
-func (s singleRow) FieldDescriptions() []pgconn.FieldDescription { return nil }
-func (s singleRow) RawValues() [][]byte  { return nil }
-func (s singleRow) Conn() *pgx.Conn     { return nil }
-func (s singleRow) Values() ([]any, error) { return nil, nil }
