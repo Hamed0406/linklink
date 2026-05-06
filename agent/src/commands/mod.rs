@@ -4,6 +4,7 @@ pub mod peers;
 pub mod register;
 pub mod relay;
 pub mod status;
+pub mod token_store;
 pub mod tunnel;
 
 use std::path::PathBuf;
