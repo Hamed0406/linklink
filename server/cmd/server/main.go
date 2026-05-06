@@ -41,7 +41,7 @@ func main() {
 	defer pool.Close()
 	log.Info().Msg("database connected and migrations applied")
 
-	router := api.NewRouter(pool, cfg.JWTSecret)
+	router := api.NewRouter(pool, cfg.JWTSecret, cfg.AuthLocalEnabled)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),

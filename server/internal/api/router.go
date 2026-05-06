@@ -12,7 +12,7 @@ import (
 	"github.com/linklink/server/internal/devices"
 )
 
-func NewRouter(db *pgxpool.Pool, jwtSecret string) http.Handler {
+func NewRouter(db *pgxpool.Pool, jwtSecret string, authLocalEnabled bool) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -41,6 +41,10 @@ func NewRouter(db *pgxpool.Pool, jwtSecret string) http.Handler {
 
 		// Auth endpoints
 		r.Route("/auth", func(r chi.Router) {
+			// Dev-only: returns an admin token instantly (requires AUTH_LOCAL_ENABLED=true)
+			if authLocalEnabled {
+				r.Post("/dev-token", auth.DevTokenHandler(db, jwtSecret))
+			}
 			r.Post("/device", deviceFlowHandler.StartDevice)
 			r.Post("/token", deviceFlowHandler.PollToken)
 			r.Post("/refresh", deviceFlowHandler.Refresh)
