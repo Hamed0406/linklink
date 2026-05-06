@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/linklink/server/internal/auth"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -56,6 +57,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrDuplicatePublicKey):
 			jsonErr(w, err.Error(), http.StatusConflict)
 		default:
+			log.Error().Err(err).Str("user_id", claims.UserID).Msg("register device")
 			jsonErr(w, msgInternalErr, http.StatusInternalServerError)
 		}
 		return
