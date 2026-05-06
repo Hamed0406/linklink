@@ -48,11 +48,114 @@ The web dashboard is available at `http://YOUR_SERVER:5173`.
 
 ---
 
+## Updating the Stack
+
+After a new image is pushed to Docker Hub (on every merge to `main`), pull and restart:
+
+```bash
+cd deploy
+
+# Pull latest images
+docker compose -f docker-compose.prod.yml --env-file .env pull
+
+# Restart with zero-downtime (recreates only changed containers)
+docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+# Verify all containers are healthy
+docker compose -f docker-compose.prod.yml ps
+
+# Check server logs
+docker compose -f docker-compose.prod.yml logs server --tail 50
+```
+
+To pin a specific release instead of always pulling `main`:
+
+```bash
+# In deploy/.env, set:
+# IMAGE_TAG=v1.2.3
+# Then in docker-compose.prod.yml change :main → :${IMAGE_TAG}
+docker compose -f docker-compose.prod.yml --env-file .env pull
+docker compose -f docker-compose.prod.yml --env-file .env up -d
+```
+
+---
+
+## Using Podman Instead of Docker
+
+All commands work with Podman. The only differences:
+
+### Install podman-compose
+
+```bash
+# Fedora / RHEL / CentOS
+sudo dnf install podman podman-compose
+
+# Ubuntu / Debian
+sudo apt install podman
+pip3 install podman-compose
+
+# macOS
+brew install podman podman-compose
+podman machine init && podman machine start
+```
+
+### Run the stack
+
+Replace `docker` with `podman` and `docker compose` with `podman-compose`:
+
+```bash
+cd deploy
+
+# Start
+podman-compose -f docker-compose.prod.yml --env-file .env up -d
+
+# Pull latest images
+podman-compose -f docker-compose.prod.yml --env-file .env pull
+
+# Restart after update
+podman-compose -f docker-compose.prod.yml --env-file .env up -d
+
+# View logs
+podman-compose -f docker-compose.prod.yml logs server --tail 50
+
+# Stop
+podman-compose -f docker-compose.prod.yml down
+```
+
+### Rootless Podman (recommended)
+
+Podman runs containers as your own user by default — no root daemon required:
+
+```bash
+# No sudo needed
+podman-compose -f docker-compose.prod.yml --env-file .env up -d
+
+# Check running containers
+podman ps
+
+# Persistent across reboots (generate systemd units)
+podman generate systemd --new --name linklink-server > ~/.config/systemd/user/linklink-server.service
+systemctl --user enable --now linklink-server
+```
+
+### Podman vs Docker — key differences
+
+| | Docker | Podman |
+|---|---|---|
+| Daemon | Required (`dockerd`) | None (daemonless) |
+| Default user | root | your user (rootless) |
+| Compose | `docker compose` (plugin) | `podman-compose` (separate install) |
+| Socket path | `/var/run/docker.sock` | `/run/user/$UID/podman/podman.sock` |
+| Compatibility | — | Drop-in for most use cases |
+
+---
+
 ## CI / CD
 
 | Event | Action |
 |---|---|
 | Push to any branch / PR | Rust tests + Go unit tests + Frontend build |
+| Changes to `.md` files only | Skipped — no build triggered |
 | Merge to `main` | Build and push `linklink-server:main` + `linklink-frontend:main` to Docker Hub |
 | Git tag `v*` | Same, plus versioned tags on Docker Hub |
 
@@ -83,7 +186,7 @@ docs/       Architecture, security model, API reference
 | Rust | 1.78+ |
 | Go | 1.25+ |
 | Node | 20+ |
-| Docker + Compose | any recent |
+| Docker + Compose **or** Podman + podman-compose | any recent |
 
 ### Run tests
 
@@ -105,7 +208,13 @@ cd frontend && npm ci && npm run build
 
 ```bash
 cp deploy/.env.example deploy/.env && $EDITOR deploy/.env
+
+# Docker
 cd deploy && docker compose -f docker-compose.dev.yml up -d
+
+# Podman
+cd deploy && podman-compose -f docker-compose.dev.yml up -d
+
 # API:      http://localhost:8080
 # Frontend: http://localhost:5173
 ```

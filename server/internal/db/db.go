@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:embed migrations/*.sql
+//go:embed migrations/*.up.sql
 var migrationsFS embed.FS
 
 // New creates a pgx connection pool and runs all pending migrations.
